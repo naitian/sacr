@@ -275,6 +275,39 @@ class Exporter {
       Exporter.writeToFile(text, filename);
    }
 
+   storeText(complete) {
+      if (!gText.textFilename && gText.text_id) {
+         var filename = gText.text_id + ".txt";
+      } else {
+         // var filename = Exporter.computeNewFilename(gText.textFilename);
+         var filename = gText.textFilename;
+         console.log("===", filename)
+      }
+      var text = this.computeText(complete);
+      localStorage.setItem(filename, text)
+   }
+
+   downloadAll() {
+      var zip = new JSZip();
+      for (var i = 0; i < localStorage.length; i++) {
+         var filename = localStorage.key(i);
+         var text = localStorage.getItem(filename);
+         zip.file(filename, text);
+      }
+      const fileStream = streamSaver.createWriteStream('sacr.zip', {
+         writableStrategy: undefined, // (optional)
+         readableStrategy: undefined  // (optional)
+      })
+
+      zip.generateAsync({ type: "blob" }).then(function (content) {
+         new Response(content).body.pipeTo(fileStream)
+      });
+   }
+
+
+
+
+
    exportHTML(brackets = false) {
       var filename = Exporter.computeNewFilename(gText.textFilename) + ".html";
       var text = this.computeHTML(brackets);

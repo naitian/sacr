@@ -69,6 +69,10 @@ The source code can be found at boberle.com.
 
    <!-- OBJECTS PROTOTYPES -->
 
+   <script type="text/javascript" src="js/jszip.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/web-streams-polyfill@2.0.2/dist/ponyfill.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.3/StreamSaver.min.js"></script>
+
    <script type="text/javascript" src="js/cls_common.js"></script>
    <script type="text/javascript" src="js/cls_sacr_parser.js"></script>
    <script type="text/javascript" src="js/cls_property.js"></script>
@@ -87,11 +91,10 @@ The source code can be found at boberle.com.
 
    <script type="text/javascript">
 
-      window.onbeforeunload = function (e) {
-         return "Make sure you have exported your annotations!  All your modification in the browser will otherwise be lost!";
-      }
-
       // START HERE
+      window.onbeforeunload = function () {
+         new Exporter().storeText(false);
+      }
 
       var gDivLinkPropertyAnchor =
          document.getElementById('divLinkPropertyAnchor');
@@ -99,30 +102,73 @@ The source code can be found at boberle.com.
       //console.log(location.search);
       var gLoadingTime = true;
       var gText;
+      var allFiles = [];
+      var fileIdx;
+      var nextUrl;
+      var previousUrl;
       if (location.search == "?withannotations") {
          gText = new Text("withAnnotations");
          gText.clickOnTheParseButton();
       } else if (location.search == "?withoutannotations") {
          gText = new Text("withoutAnnotations");
          gText.clickOnTheParseButton();
-      } else if ((new URL(location)).searchParams.get("file")) {
-         var file = (new URL(location)).searchParams.get("file");
-         gText = new Text();
-         fetch(file).then(response => response.text()).then(
+      } else if (new URL(location).searchParams.get("directory")) {
+         var directory = new URL(location).searchParams.get("directory");
+         fetch(directory).then(response => response.text()).then(
             (filecontents) => {
-               console.log(filecontents)
-               const schema = `PROP:name=adj
+               allFiles = filecontents.trim().split("\n");
+               return allFiles;
+            }
+         ).then(
+            (allFiles) => {
+
+               console.log(allFiles)
+               var file;
+               if (new URL(location).searchParams.get("file")) {
+                  file = new URL(location).searchParams.get("file");
+                  fileIdx = allFiles.indexOf(file);
+               } else {
+                  file = allFiles[0]
+                  fileIdx = 0;
+               }
+
+               nextUrl = new URL(location);
+               nextUrl.searchParams.set("file", allFiles[(fileIdx + 1) % allFiles.length]);
+               previousUrl = new URL(location);
+               previousUrl.searchParams.set("file", allFiles[(fileIdx - 1 + allFiles.length) % allFiles.length]);
+
+
+               gText = new Text();
+               gText.dataLoader.schema = `PROP:name=adj
 $$$
 is
 not
 `;
-               gText.dataLoader.text = filecontents;
-               gText.dataLoader.schema = schema;
-               gText.dataLoader.showPropertyWarnings = false;
-               gText.dataLoader.callback(gText.dataLoader)
-               gText.dataLoader.modalDiv.close()
+               gText.dataLoader.textFilename = file;
+               if (localStorage.getItem(file)) {
+                  const filecontents = localStorage.getItem(file);
+                  gText.dataLoader.text = filecontents;
+                  gText.dataLoader.showPropertyWarnings = false;
+                  console.log(gText.dataLoader)
+                  gText.dataLoader.callback(gText.dataLoader)
+                  gText.dataLoader.modalDiv.close()
+                  console.log(gText)
+
+               } else {
+                  fetch(file).then(response => response.text()).then(
+                     (filecontents) => {
+                        console.log(filecontents)
+                        gText.dataLoader.text = filecontents;
+                        gText.dataLoader.showPropertyWarnings = false;
+                        gText.dataLoader.callback(gText.dataLoader)
+                        gText.dataLoader.modalDiv.close()
+                        localStorage.setItem(file, filecontents)
+                     }
+                  );
+               }
             }
          );
+
       } else {
          gText = new Text();
       }
@@ -221,7 +267,7 @@ not
             }
          } else if (e.keyCode == 87) { // w = export
             if (e.shiftKey) {
-               new Exporter().exportText(true);
+               new Exporter().storeText(false);
             } else {
                new Exporter().exportText();
             }
@@ -237,8 +283,13 @@ not
             } else {
                new Exporter().exportSchema();
             }
-         } else if (e.keyCode == 83) { // s = search
-            gText.search();
+         } else if (e.keyCode == 83) {
+            if (e.shiftKey) {
+               // free
+               new Exporter().downloadAll(); // download all visited files
+            } else {
+               gText.search(); // s = search
+            }
          } else if (e.keyCode == 85) { // u = hide non true chains
             if (e.shiftKey) {
                gText.chainColl.toggleNonTrueChainsDisplayInPopup(); // in popup
@@ -345,6 +396,10 @@ not
             help += "- l: statistics\n";
             help += "- P: show chain patterns\n";
             alert(help);
+         } else if (e.keyCode == 37) { // left arrow
+            window.location = previousUrl;
+         } else if (e.keyCode == 39) { // right arrow
+            window.location = nextUrl;
          }
       };
       document.body.addEventListener('keydown', gKeyDownHandler);
