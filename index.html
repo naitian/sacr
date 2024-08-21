@@ -285,8 +285,11 @@ not
             }
          } else if (e.keyCode == 83) {
             if (e.shiftKey) {
-               // free
-               new Exporter().downloadAll(); // download all visited files
+               // shift+s = download all visited files
+               // save first
+               const exporter = new Exporter();
+               exporter.storeText(false);
+               exporter.downloadAll(); // download all visited files
             } else {
                gText.search(); // s = search
             }
