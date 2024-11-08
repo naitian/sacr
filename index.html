@@ -139,10 +139,14 @@ The source code can be found at boberle.com.
 
 
                gText = new Text();
-               gText.dataLoader.schema = `PROP:name=adj
+               gText.dataLoader.schema = `PROP:name=type
 $$$
-is
-not
+adj:is
+adj:not
+noun:is
+noun:not
+verb:is
+verb:not
 `;
                gText.dataLoader.textFilename = file;
                if (localStorage.getItem(file)) {
